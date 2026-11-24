@@ -22,6 +22,7 @@ constexpr int ATTN_N = 1024; // sequence length
 #ifndef ATTN_D
 constexpr int ATTN_D = 64; // dimension
 #endif
+static_assert(ATTN_D == 64, "kernel_d64.cpp is the head-dim-64 kernel (its waits are tuned for D = 64); build kernel.cpp for other head dims");
 
 constexpr int Q_BLOCK_SIZE = 32; // q block size
 constexpr int KV_BLOCK_SIZE = 64; // kv block size

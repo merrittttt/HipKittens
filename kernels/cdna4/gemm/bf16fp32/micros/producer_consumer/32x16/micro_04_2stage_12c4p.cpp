@@ -66,7 +66,7 @@ void micro_tk(const micro_globals g) {
     // producer and consumer
     const int warp_id = kittens::warpid();
     const int local_warp_id = warp_id % 4;
-    const int warp_group_id = kittens::warpgroupid();
+    const int warp_group_id = kittens::warpid() / 4;
     const bool is_producer = (warp_group_id == 0);
     const bool is_consumer = (warp_group_id > 0 && warp_group_id <= M_BLOCK);
     const int consumer_idx = is_consumer ? warp_group_id - 1 : 0;

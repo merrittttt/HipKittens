@@ -70,7 +70,7 @@ void micro_tk(const micro_globals g) {
 
     int warp_id = kittens::warpid();
     int local_warp_id = warp_id % 4;
-    int warp_group_id = kittens::warpgroupid();
+    int warp_group_id = kittens::warpid() / 4;
     bool is_producer = (warp_group_id == 0);
     bool is_consumer = (warp_group_id > 0 && warp_group_id <= M_BLOCK);
     int consumer_idx = is_consumer ? warp_group_id - 1 : 0;

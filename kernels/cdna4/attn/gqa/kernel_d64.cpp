@@ -383,7 +383,7 @@ __global__ void attend_ker(const attn_globals<D> g) {
     mma_AtB(att_block[1], k_reg_transposed, q_reg_transposed, att_block[1]);
     //      Finish softmax for QK2
     exp2(att_block[0].tiles[1][0], att_block[0].tiles[1][0]);
-    mul(norm_vec, norm_vec, scale_vec);
+    if (pending_scale) mul(norm_vec, norm_vec, scale_vec);   // scale_vec is stale when the last check kept the max
     col_sum(norm_vec, att_block[0], norm_vec);
     copy(att_block_bf16, att_block[0]);
     att_block_bf16_in = *reinterpret_cast<attn_tile<D, bf16, col_l, rt_16x32_4_s>*>(&att_block_bf16);

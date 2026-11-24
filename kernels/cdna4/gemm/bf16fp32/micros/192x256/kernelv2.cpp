@@ -92,6 +92,9 @@ void micro_tk(const micro_globals g) {
     G::prefill_swizzled_offsets(As[tic][0], g.a, swizzled_offsets_A);
     G::prefill_swizzled_offsets(Bs[tic][0], g.b, swizzled_offsets_B);
 
+    // An A half-tile (96 x 64 bf16, 12 KiB) is one 8 KiB buffer_load ... lds across all 512
+    // threads plus a 4 KiB leftover that only waves 0-3 issue. Every vmcnt wait below leaves one
+    // A half-tile in flight, which is one load fewer for waves 4-7, so their counts are one lower.
     G::load(Bs[tic][0], g.b, {0, 0, col*2, 0}, swizzled_offsets_B);
     G::load(As[tic][0], g.a, {0, 0, row*2, 0}, swizzled_offsets_A);
     G::load(Bs[tic][1], g.b, {0, 0, col*2 + 1, 0}, swizzled_offsets_B);
@@ -101,14 +104,14 @@ void micro_tk(const micro_globals g) {
         __builtin_amdgcn_s_barrier();
     }
 
-    asm volatile("s_waitcnt vmcnt(4)");
+    if (warp_row == 0) { asm volatile("s_waitcnt vmcnt(4)"); } else { asm volatile("s_waitcnt vmcnt(3)"); }
     __builtin_amdgcn_s_barrier();
 
     G::load(Bs[toc][0], g.b, {0, 0, col*2, 1}, swizzled_offsets_B);
     G::load(As[toc][0], g.a, {0, 0, row*2, 1}, swizzled_offsets_A);
     G::load(Bs[toc][1], g.b, {0, 0, col*2 + 1, 1}, swizzled_offsets_B);
 
-    asm volatile("s_waitcnt vmcnt(6)");
+    if (warp_row == 0) { asm volatile("s_waitcnt vmcnt(6)"); } else { asm volatile("s_waitcnt vmcnt(5)"); }
     __builtin_amdgcn_s_barrier();
 
     #pragma unroll
@@ -119,7 +122,7 @@ void micro_tk(const micro_globals g) {
         auto st_subtile_a = subtile_inplace<HALF_REG_BLOCK_M, K_STEP>(As[tic][0], {warp_row, 0});
         load(A_tile, st_subtile_a);
         G::load(As[toc][1], g.a, {0, 0, row*2 + 1, tile + 1}, swizzled_offsets_A);
-        asm volatile("s_waitcnt lgkmcnt(8)");
+        asm volatile("s_waitcnt lgkmcnt(6)");  // B_tile_0's 8 ds_reads done; A_tile's 6 may stay in flight
         __builtin_amdgcn_s_barrier();
 
         asm volatile("s_waitcnt lgkmcnt(0)");
@@ -153,7 +156,7 @@ void micro_tk(const micro_globals g) {
         __builtin_amdgcn_sched_barrier(0);
 
         G::load(Bs[tic][1], g.b, {0, 0, col*2 + 1, tile + 2}, swizzled_offsets_B);
-        asm volatile("s_waitcnt vmcnt(6)");
+        if (warp_row == 0) { asm volatile("s_waitcnt vmcnt(6)"); } else { asm volatile("s_waitcnt vmcnt(5)"); }
         __builtin_amdgcn_s_barrier();
 
         __builtin_amdgcn_s_setprio(1);
@@ -190,7 +193,7 @@ void micro_tk(const micro_globals g) {
 
         st_subtile_a = subtile_inplace<HALF_REG_BLOCK_M, K_STEP>(As[tic][1], {warp_row, 0});
         load(A_tile, st_subtile_a);
-        asm volatile("s_waitcnt vmcnt(4)");
+        if (warp_row == 0) { asm volatile("s_waitcnt vmcnt(4)"); } else { asm volatile("s_waitcnt vmcnt(3)"); }
         __builtin_amdgcn_s_barrier();
 
         asm volatile("s_waitcnt lgkmcnt(0)");
@@ -207,7 +210,7 @@ void micro_tk(const micro_globals g) {
         load(B_tile_0, st_subtile_b);
         auto st_subtile_a = subtile_inplace<HALF_REG_BLOCK_M, K_STEP>(As[tic][0], {warp_row, 0});
         load(A_tile, st_subtile_a);
-        asm volatile("s_waitcnt vmcnt(2)");
+        if (warp_row == 0) { asm volatile("s_waitcnt vmcnt(2)"); } else { asm volatile("s_waitcnt vmcnt(1)"); }
         __builtin_amdgcn_s_barrier();
 
         asm volatile("s_waitcnt lgkmcnt(0)");

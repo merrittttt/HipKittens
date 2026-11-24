@@ -25,6 +25,8 @@ constexpr int KV_BLOCK_SIZE = 64; // kv block size
 constexpr bool causal = true;
 
 #define NUM_WARPS 8
+// Each workgroup covers Q_BLOCK_SIZE * NUM_WARPS = 256 query rows.
+static_assert(ATTN_N > 0 && ATTN_N % (Q_BLOCK_SIZE * NUM_WARPS) == 0, "ATTN_N must be a positive multiple of 256");
 #define NUM_THREADS (kittens::WARP_THREADS * NUM_WARPS)
 
 #define MFMA_MASK 0x08

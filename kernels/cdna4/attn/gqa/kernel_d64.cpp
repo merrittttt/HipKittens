@@ -275,13 +275,13 @@ __global__ void attend_ker(const attn_globals<D> g) {
         } else {
             sub(scale_vec, max_vec_prev, max_vec);   // diff = prev - new
             exp2(scale_vec, scale_vec);
-            mul_col(o_reg, o_reg, scale_vec);
             copy(max_vec_prev, max_vec);
             pending_scale = 1;
         }
         mma_AtB(o_reg, subtile_inplace<16>(v_reg, 1), subtile_inplace<16>(att_block_bf16_in, 1), o_reg);
         mma_AtB(o_reg, subtile_inplace<16>(v_reg, 2), subtile_inplace<16>(att_block_bf16_in, 2), o_reg);
         mma_AtB(o_reg, subtile_inplace<16>(v_reg, 3), subtile_inplace<16>(att_block_bf16_in, 3), o_reg);
+        if (pending_scale) mul_col(o_reg, o_reg, scale_vec);   // after all four old-P MMAs
         sub_col(att_block[1], att_block[1], max_vec);
         exp2(att_block[1].tiles[0][0], att_block[1].tiles[0][0]);
         sched_barrier_pairs<6, 5, 2>();
@@ -347,13 +347,13 @@ __global__ void attend_ker(const attn_globals<D> g) {
         } else {
             sub(scale_vec, max_vec_prev, max_vec);   // diff = prev - new
             exp2(scale_vec, scale_vec);
-            mul_col(o_reg, o_reg, scale_vec);
             copy(max_vec_prev, max_vec);
             pending_scale = 1;
         }
         mma_AtB(o_reg, subtile_inplace<16>(v_reg, 1), subtile_inplace<16>(att_block_bf16_in, 1), o_reg);
         mma_AtB(o_reg, subtile_inplace<16>(v_reg, 2), subtile_inplace<16>(att_block_bf16_in, 2), o_reg);
         mma_AtB(o_reg, subtile_inplace<16>(v_reg, 3), subtile_inplace<16>(att_block_bf16_in, 3), o_reg);
+        if (pending_scale) mul_col(o_reg, o_reg, scale_vec);   // after all four old-P MMAs
         sub_col(att_block[0], att_block[0], max_vec);
         exp2(att_block[0].tiles[0][0], att_block[0].tiles[0][0]);
         sched_barrier_pairs<6, 5, 4>();
